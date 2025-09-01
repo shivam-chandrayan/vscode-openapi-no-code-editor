@@ -14,27 +14,10 @@
   "contributes": {
     "commands": [
       {
-        "command": "vscode-openapi-spec.open-editor",
-        "title": "vscode openapi spec: open editor"
+        "command": "vscode-openapi-spec.start",
+        "title": "vscode openapi spec: Start"
       }
-    ],
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "openapi-sidebar",
-          "title": "OpenAPI",
-          "icon": "media/openapi-icon.svg"
-        }
-      ]
-    },
-    "views": {
-      "openapi-sidebar": [
-        {
-          "id": "openapiFieldsView",
-          "name": "OpenAPI Fields"
-        }
-      ]
-    }
+    ]
   },
   "scripts": {
     "install:all": "npm install && cd webview-ui && npm install",
