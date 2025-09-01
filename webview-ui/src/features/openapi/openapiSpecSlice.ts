@@ -2,15 +2,32 @@ import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
 export interface OpenAPISpecState {
-  title: string;
-  version: string;
-  description: string;
+  specData: {
+    openapi: string;
+    info: {
+      title: string;
+      description: string;
+      version: string;
+    };
+
+    servers: {
+      url: string;
+      description: string;
+    }[];
+  };
 }
 
 const initialState: OpenAPISpecState = {
-  title: "",
-  version: "",
-  description: "",
+  specData: {
+    openapi: "",
+    info: {
+      title: "",
+      description: "",
+      version: "",
+    },
+
+    servers: [],
+  },
 };
 
 export const oepnAPISpecSlice = createSlice({
