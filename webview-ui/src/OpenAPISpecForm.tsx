@@ -2,10 +2,35 @@ import { useDispatch, useSelector } from "react-redux";
 import { setSpec } from "./features/openapi/openapiSpecSlice";
 import { vscode } from "./utilities/vscode";
 import type { RootState } from "./app/store";
+import { useEffect } from "react";
 
 export default function OpenAPISpecForm() {
   const dispatch = useDispatch();
   const apiSpec = useSelector((state: RootState) => state.openAPISpec.specData);
+
+  useEffect(() => {
+    vscode.postMessage({
+      command: "ready",
+      payload: "Webview Ready",
+    });
+
+    const handlVSCodeMessage = (message: any) => {
+      const { command, payload } = message;
+
+      switch (command) {
+        case "init state":
+          console.log("message", message);
+          dispatch(setSpec({ specData: payload.specData }));
+          return;
+      }
+    };
+
+    window.addEventListener("message", handlVSCodeMessage);
+
+    return () => {
+      window.removeEventListener("message", handlVSCodeMessage);
+    };
+  }, []);
 
   // Generic handler
   const handleChange = (field: string, value: string, index?: number) => {
@@ -53,15 +78,15 @@ export default function OpenAPISpecForm() {
     dispatch(setSpec({ specData: updatedSpec }));
 
     // Send to VSCode extension
+    console.log(`sending updated spec to extension ${updatedSpec}`);
     vscode.postMessage({
-      command: "saveToWorkspace",
-      value: updatedSpec,
+      command: "writeSpecToFile",
+      payload: { specData: updatedSpec },
     });
   };
 
   return (
     <div className="w-full max-w-lg">
-      <>{JSON.stringify(apiSpec)}</>
       <form className="">
         {/* openapi version */}
         <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
@@ -138,54 +163,52 @@ export default function OpenAPISpecForm() {
         </div>
 
         {/* servers section */}
-        {apiSpec.servers.length > 0 ? (
-          <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
-            <div className="mb-4">
-              <h2 className="block text-gray-700 text-lg font-bold mb-2">
-                Servers
-              </h2>
-            </div>
-            {apiSpec.servers.map((server, index) => (
-              <div key={index}>
-                <div className="mb-4">
-                  <label
-                    className="block text-gray-700 text-sm font-bold mb-2"
-                    htmlFor={`url-${index}`}
-                  >
-                    URL
-                  </label>
-                  <input
-                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                    id={`url-${index}`}
-                    type="text"
-                    placeholder="url"
-                    value={server.url}
-                    onChange={(e) =>
-                      handleChange("serverUrl", e.target.value, index)
-                    }
-                  />
-                </div>
-                <div className="mb-4">
-                  <label
-                    className="block text-gray-700 text-sm font-bold mb-2"
-                    htmlFor={`description-${index}`}
-                  >
-                    Description
-                  </label>
-                  <textarea
-                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                    id={`description-${index}`}
-                    placeholder="Description"
-                    value={server.description}
-                    onChange={(e) =>
-                      handleChange("serverDescription", e.target.value, index)
-                    }
-                  />
-                </div>
-              </div>
-            ))}
+        <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+          <div className="mb-4">
+            <h2 className="block text-gray-700 text-lg font-bold mb-2">
+              Servers
+            </h2>
           </div>
-        ) : null}
+          {apiSpec.servers.map((server, index) => (
+            <div key={index}>
+              <div className="mb-4">
+                <label
+                  className="block text-gray-700 text-sm font-bold mb-2"
+                  htmlFor={`url-${index}`}
+                >
+                  URL
+                </label>
+                <input
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  id={`url-${index}`}
+                  type="text"
+                  placeholder="url"
+                  value={server.url}
+                  onChange={(e) =>
+                    handleChange("serverUrl", e.target.value, index)
+                  }
+                />
+              </div>
+              <div className="mb-4">
+                <label
+                  className="block text-gray-700 text-sm font-bold mb-2"
+                  htmlFor={`description-${index}`}
+                >
+                  Description
+                </label>
+                <textarea
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  id={`description-${index}`}
+                  placeholder="Description"
+                  value={server.description}
+                  onChange={(e) =>
+                    handleChange("serverDescription", e.target.value, index)
+                  }
+                />
+              </div>
+            </div>
+          ))}
+        </div>
       </form>
     </div>
   );

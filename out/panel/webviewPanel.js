@@ -36,8 +36,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.WebviewPanel = void 0;
 const vscode_1 = require("vscode");
 const vscode = __importStar(require("vscode"));
-const utilities_1 = require("../utilities");
-const utilities_2 = require("../utilities");
+const getUri_1 = require("../utilites/getUri");
+const getNonce_1 = require("../utilites/getNonce");
+const yaml = __importStar(require("js-yaml"));
 /**
  * This class manages the state and behavior of HelloWorld webview panels.
  *
@@ -51,22 +52,22 @@ const utilities_2 = require("../utilities");
 class WebviewPanel {
     static currentPanel;
     _panel;
-    _context;
     _disposables = [];
+    _projectUri;
     /**
      * The WebviewPanel class private constructor (called only from the render method).
      *
      * @param panel A reference to the webview panel
      * @param extensionUri The URI of the directory containing the extension
      */
-    constructor(panel, extensionUri, context) {
+    constructor(panel, extensionUri, projectUri) {
         this._panel = panel;
+        this._projectUri = projectUri;
         // Set an event listener to listen for when the panel is disposed (i.e. when the user closes
         // the panel or when the panel is closed programmatically)
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
         // Set the HTML content for the webview panel
         this._panel.webview.html = this._getWebviewContent(this._panel.webview, extensionUri);
-        this._context = context;
         // Set an event listener to listen for messages passed from the webview context
         this._setWebviewMessageListener(this._panel.webview);
     }
@@ -76,14 +77,10 @@ class WebviewPanel {
      *
      * @param extensionUri The URI of the directory containing the extension.
      */
-    static render(context, viewRF = false) {
+    static render(extensionUri, projectUri) {
         if (WebviewPanel.currentPanel) {
             // If the webview panel already exists reveal it
             WebviewPanel.currentPanel._panel.reveal(vscode_1.ViewColumn.One);
-            WebviewPanel.currentPanel._panel.webview.postMessage({
-                command: "init",
-                state: { count: 42, viewRF },
-            });
         }
         else {
             // If a webview panel does not already exist create and show a new one
@@ -101,15 +98,12 @@ class WebviewPanel {
                 retainContextWhenHidden: true,
                 // Restrict the webview to only load resources from the `out` and `webview-ui/build` directories
                 localResourceRoots: [
-                    vscode_1.Uri.joinPath(context.extensionUri, "out"),
-                    vscode_1.Uri.joinPath(context.extensionUri, "webview-ui/build"),
+                    vscode_1.Uri.joinPath(extensionUri, "out"),
+                    vscode_1.Uri.joinPath(extensionUri, "webview-ui/build"),
                 ],
             });
-            WebviewPanel.currentPanel = new WebviewPanel(panel, context.extensionUri, context);
-            panel.webview.postMessage({
-                command: "init",
-                state: { count: 42, viewRF },
-            });
+            WebviewPanel.currentPanel = new WebviewPanel(panel, extensionUri, projectUri);
+            this._readSpecFileAndSend();
         }
     }
     /**
@@ -140,20 +134,20 @@ class WebviewPanel {
      */
     _getWebviewContent(webview, extensionUri) {
         // The CSS file from the React build output
-        const stylesUri = (0, utilities_1.getUri)(webview, extensionUri, [
+        const stylesUri = (0, getUri_1.getUri)(webview, extensionUri, [
             "webview-ui",
             "build",
             "assets",
             "index.css",
         ]);
         // The JS file from the React build output
-        const scriptUri = (0, utilities_1.getUri)(webview, extensionUri, [
+        const scriptUri = (0, getUri_1.getUri)(webview, extensionUri, [
             "webview-ui",
             "build",
             "assets",
             "index.js",
         ]);
-        const nonce = (0, utilities_2.getNonce)();
+        const nonce = (0, getNonce_1.getNonce)();
         // Tip: Install the es6-string-html VS Code extension to enable code highlighting below
         return /*html*/ `
       <!DOCTYPE html>
@@ -210,37 +204,61 @@ class WebviewPanel {
      */
     _setWebviewMessageListener(webview) {
         webview.onDidReceiveMessage(async (message) => {
-            const command = message.command;
-            const text = message.text;
-            const state = message.state;
+            const { command, payload } = message;
             switch (command) {
                 case "ready":
                     // Code that should run in response to the hello message command
-                    vscode_1.window.showInformationMessage(text);
-                    // this._panel.webview.postMessage({
-                    //   command: "init",
-                    //   state: { count: 42 },
-                    // });
+                    vscode_1.window.showInformationMessage(payload);
+                    this._panel.webview.postMessage({
+                        command: "init state",
+                        payload: {
+                            specData: {
+                                openapi: "3.0.0",
+                                info: { title: "New API", description: "", version: "1.0.0" },
+                                servers: [],
+                            },
+                        },
+                    });
                     return;
-                case "saveToWorkspace":
-                    const specData = message.value;
-                    this.saveAndOpenOpenAPISpec(this._context, specData);
-                // const workspaceFolders = vscode.workspace.workspaceFolders;
-                // if (!workspaceFolders) {
-                //   vscode.window.showErrorMessage("No workspace folder open.");
-                //   return;
-                // }
-                // const folderUri = workspaceFolders[0].uri;
-                // const fileUri = vscode.Uri.joinPath(folderUri, "openapi-spec.json");
-                // await vscode.workspace.fs.writeFile(
-                //   fileUri,
-                //   Buffer.from(JSON.stringify(specData, null, 2), "utf8")
-                // );
-                // vscode.window.showInformationMessage(
-                //   "OpenAPI spec saved to workspace!"
-                // );
+                case "writeSpecToFile":
+                    // updatingFromWebview = true;
+                    vscode_1.window.showInformationMessage(`received spec from webview: ${JSON.stringify(payload)}`);
+                    if (this._projectUri) {
+                        const { specData } = payload;
+                        const yamlString = yaml.dump(specData);
+                        const fileUri = vscode.Uri.joinPath(this._projectUri, "openapi.yaml");
+                        try {
+                            vscode_1.window.showInformationMessage(`writing to file URI: ${fileUri}`);
+                            console.log("fileUri", fileUri);
+                            await vscode.workspace.fs.writeFile(fileUri, Buffer.from(yamlString, "utf8"));
+                        }
+                        catch (err) {
+                            vscode_1.window.showErrorMessage(`❌ Failed to write file: ${err.message}`);
+                            console.error(err);
+                        }
+                        vscode_1.window.showInformationMessage(`Data written to file`);
+                    }
+                    // updatingFromWebview = false;
+                    return;
             }
         }, undefined, this._disposables);
+    }
+    async _readSpecFileAndSend() {
+        try {
+            const fileUri = vscode.Uri.joinPath(this._projectUri, "openapi.yaml");
+            const fileData = await vscode.workspace.fs.readFile(fileUri);
+            const fileContent = fileData.toString();
+            // Convert YAML -> JS object
+            const specObject = yaml.load(fileContent);
+            // Send to webview
+            this._panel.webview.postMessage({
+                type: "loadSpec",
+                payload: specObject,
+            });
+        }
+        catch (err) {
+            vscode.window.showErrorMessage(`Failed to read spec file: ${err}`);
+        }
     }
 }
 exports.WebviewPanel = WebviewPanel;
