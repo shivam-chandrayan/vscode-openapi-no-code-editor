@@ -12,8 +12,13 @@ dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# Build output
 out
+dist/
+dist-ssr/
+webview-ui/build/
+
+# Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
