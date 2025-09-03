@@ -14,9 +14,6 @@ export async function activate(context: vscode.ExtensionContext) {
       vscode.window.showInformationMessage("Starting Extension");
       await ensureProjectFolder();
       await ensureSpecFileExists();
-      vscode.window.showInformationMessage(
-        `sessionProjectUri: ${sessionProjectUri}`
-      );
       if (sessionProjectUri) {
         WebviewPanel.render(context.extensionUri, sessionProjectUri);
       }
@@ -30,9 +27,6 @@ export function deactivate() {
 }
 
 async function ensureProjectFolder() {
-  vscode.window.showInformationMessage(
-    `sessionProjectUri: ${sessionProjectUri}`
-  );
   if (!sessionProjectUri) {
     vscode.window.showInformationMessage("Project URI does not exists");
     // Always prompt user for a project folder
@@ -49,7 +43,6 @@ async function ensureProjectFolder() {
       );
       return;
     }
-    vscode.window.showInformationMessage(`chosen: ${chosen} ${chosen?.length}`);
     sessionProjectUri = chosen[0];
   }
 }
@@ -65,7 +58,6 @@ async function ensureSpecFileExists() {
         `  title: "New API"`,
         `  version: "1.0.0"`,
         `  description: ""`,
-        `servers: {}`,
       ].join("\n");
       await vscode.workspace.fs.writeFile(
         sessionSpecUri,

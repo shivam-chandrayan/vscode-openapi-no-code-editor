@@ -93,7 +93,17 @@ export class WebviewPanel {
         projectUri
       );
 
-      this._readSpecFileAndSend();
+      const watcher = vscode.workspace.createFileSystemWatcher(
+        new vscode.RelativePattern(projectUri, "openapi.yaml")
+      );
+
+      watcher.onDidChange(() => {
+        WebviewPanel.currentPanel?._readSpecFileAndSend();
+      });
+
+      panel.onDidDispose(() => {
+        watcher.dispose();
+      });
     }
   }
 
@@ -219,8 +229,7 @@ export class WebviewPanel {
         switch (command) {
           case "ready":
             // Code that should run in response to the hello message command
-            window.showInformationMessage(payload);
-            this._panel.webview.postMessage({
+            webview.postMessage({
               command: "init state",
               payload: {
                 specData: {
@@ -230,13 +239,12 @@ export class WebviewPanel {
                 },
               },
             });
+
+            this._readSpecFileAndSend();
             return;
 
           case "writeSpecToFile":
             // updatingFromWebview = true;
-            window.showInformationMessage(
-              `received spec from webview: ${JSON.stringify(payload)}`
-            );
             if (this._projectUri) {
               const { specData } = payload;
               const yamlString = yaml.dump(specData);
@@ -245,10 +253,6 @@ export class WebviewPanel {
                 "openapi.yaml"
               );
               try {
-                window.showInformationMessage(
-                  `writing to file URI: ${fileUri}`
-                );
-                console.log("fileUri", fileUri);
                 await vscode.workspace.fs.writeFile(
                   fileUri,
                   Buffer.from(yamlString, "utf8")
@@ -281,8 +285,8 @@ export class WebviewPanel {
       const specObject = yaml.load(fileContent);
 
       // Send to webview
-      this._panel.webview.postMessage({
-        type: "loadSpec",
+      WebviewPanel.currentPanel?._panel.webview.postMessage({
+        command: "loadSpecInWebview",
         payload: specObject,
       });
     } catch (err) {

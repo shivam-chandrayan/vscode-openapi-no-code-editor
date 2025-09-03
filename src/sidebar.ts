@@ -15,9 +15,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.options = {
       enableScripts: true,
-      localResourceRoots: [
-        this._context.extensionUri
-      ]
+      localResourceRoots: [this._context.extensionUri],
     };
 
     webviewView.webview.html = this.getHtml(webviewView.webview);
@@ -26,9 +24,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage((message) => {
       switch (message.type) {
         case "addField":
-          vscode.window.showInformationMessage(
-            `Added field: ${message.fieldName} = ${message.fieldValue}`
-          );
           break;
       }
     });
@@ -69,8 +64,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
 // Utility: nonce generator
 function getNonce() {
-  let text = '';
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let text = "";
+  const possible =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   for (let i = 0; i < 32; i++) {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
   }

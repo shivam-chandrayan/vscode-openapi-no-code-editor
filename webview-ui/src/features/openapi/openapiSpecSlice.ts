@@ -14,6 +14,9 @@ export interface OpenAPISpecState {
       url: string;
       description: string;
     }[];
+
+    components: {};
+    paths: {};
   };
 }
 
@@ -27,6 +30,8 @@ const initialState: OpenAPISpecState = {
     },
 
     servers: [],
+    components: {},
+    paths: {},
   },
 };
 
